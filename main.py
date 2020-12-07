@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import torchvision
 from torch.utils.data import DataLoader, DistributedSampler
 
 import datasets
@@ -16,6 +17,8 @@ from datasets import build_dataset, get_coco_api_from_dataset
 from engine import evaluate, train_one_epoch
 from models import build_model
 
+# torch.distributed.launch
+# torchvision.models.resnet50()
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Set transformer detector', add_help=False)

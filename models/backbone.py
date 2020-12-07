@@ -14,7 +14,7 @@ from typing import Dict, List
 from util.misc import NestedTensor, is_main_process
 
 from .position_encoding import build_position_encoding
-
+# torch.nn.BatchNorm2d
 
 class FrozenBatchNorm2d(torch.nn.Module):
     """
@@ -76,6 +76,7 @@ class BackboneBase(nn.Module):
             m = tensor_list.mask
             assert m is not None
             mask = F.interpolate(m[None].float(), size=x.shape[-2:]).to(torch.bool)[0]
+            # to(torch.bool) 是进行类型转换; interpolate默认模式为mode='nearest'
             out[name] = NestedTensor(x, mask)
         return out
 

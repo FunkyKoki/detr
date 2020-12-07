@@ -47,12 +47,13 @@ class Transformer(nn.Module):
     def forward(self, src, mask, query_embed, pos_embed):
         # flatten NxCxHxW to HWxNxC
         bs, c, h, w = src.shape
-        src = src.flatten(2).permute(2, 0, 1)
-        pos_embed = pos_embed.flatten(2).permute(2, 0, 1)
-        query_embed = query_embed.unsqueeze(1).repeat(1, bs, 1)
-        mask = mask.flatten(1)
+        src = src.flatten(2).permute(2, 0, 1)  # HWxNxC
+        pos_embed = pos_embed.flatten(2).permute(2, 0, 1)  # HWxNx2*self.num_pos_feats
+        query_embed = query_embed.unsqueeze(1).repeat(1, bs, 1)  
+        # num_queries x batchsize x hiddenDims
+        mask = mask.flatten(1)  # B x HW
 
-        tgt = torch.zeros_like(query_embed)
+        tgt = torch.zeros_like(query_embed)  # num_queries x batchsize x hiddenDims
         memory = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
         hs = self.decoder(tgt, memory, memory_key_padding_mask=mask,
                           pos=pos_embed, query_pos=query_embed)
@@ -213,9 +214,9 @@ class TransformerDecoderLayer(nn.Module):
                      tgt_mask: Optional[Tensor] = None,
                      memory_mask: Optional[Tensor] = None,
                      tgt_key_padding_mask: Optional[Tensor] = None,
-                     memory_key_padding_mask: Optional[Tensor] = None,
-                     pos: Optional[Tensor] = None,
-                     query_pos: Optional[Tensor] = None):
+                     memory_key_padding_mask: Optional[Tensor] = None, # yes
+                     pos: Optional[Tensor] = None,  # yes
+                     query_pos: Optional[Tensor] = None):  # yes
         q = k = self.with_pos_embed(tgt, query_pos)
         tgt2 = self.self_attn(q, k, value=tgt, attn_mask=tgt_mask,
                               key_padding_mask=tgt_key_padding_mask)[0]
@@ -295,3 +296,4 @@ def _get_activation_fn(activation):
     if activation == "glu":
         return F.glu
     raise RuntimeError(F"activation should be relu/gelu, not {activation}.")
+

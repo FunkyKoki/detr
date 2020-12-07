@@ -58,14 +58,17 @@ class DETR(nn.Module):
         """
         if isinstance(samples, (list, torch.Tensor)):
             samples = nested_tensor_from_tensor_list(samples)
+            # 在这里进行数据的对齐 以及mask的生成
         features, pos = self.backbone(samples)
 
         src, mask = features[-1].decompose()
         assert mask is not None
-        hs = self.transformer(self.input_proj(src), mask, self.query_embed.weight, pos[-1])[0]
+        hs = self.transformer(self.input_proj(src), mask, self.query_embed.weight, pos[-1])[0]  # shape: 1,batchsize,num_queries,hiddenDims
 
         outputs_class = self.class_embed(hs)
+        # shape: 1,batchsize,num_queries,num_classes + 1
         outputs_coord = self.bbox_embed(hs).sigmoid()
+        # shape: 1,batchsize,num_queries,4
         out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
         if self.aux_loss:
             out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
@@ -294,6 +297,8 @@ class MLP(nn.Module):
         self.num_layers = num_layers
         h = [hidden_dim] * (num_layers - 1)
         self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+        # input_dim   hidden_dim  hidden_dim
+        # hidden_dim  hidden_dim  output_dim
 
     def forward(self, x):
         for i, layer in enumerate(self.layers):
