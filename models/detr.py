@@ -113,15 +113,16 @@ class SetCriterion(nn.Module):
         targets dicts must contain the key "labels" containing a tensor of dim [nb_target_boxes]
         """
         assert 'pred_logits' in outputs
-        src_logits = outputs['pred_logits']
+        src_logits = outputs['pred_logits']  # batchsize x num_queries x num_classes+1
 
         idx = self._get_src_permutation_idx(indices)
         target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
         target_classes = torch.full(src_logits.shape[:2], self.num_classes,
-                                    dtype=torch.int64, device=src_logits.device)
+                                    dtype=torch.int64, device=src_logits.device)  # batchsize x num_queries
         target_classes[idx] = target_classes_o
 
         loss_ce = F.cross_entropy(src_logits.transpose(1, 2), target_classes, self.empty_weight)
+        # 这里对cross entropy loss的使用务必学习
         losses = {'loss_ce': loss_ce}
 
         if log:
@@ -208,8 +209,8 @@ class SetCriterion(nn.Module):
     def get_loss(self, loss, outputs, targets, indices, num_boxes, **kwargs):
         loss_map = {
             'labels': self.loss_labels,
-            'cardinality': self.loss_cardinality,
             'boxes': self.loss_boxes,
+            'cardinality': self.loss_cardinality,
             'masks': self.loss_masks
         }
         assert loss in loss_map, f'do you really want to compute {loss} loss?'
@@ -236,7 +237,7 @@ class SetCriterion(nn.Module):
 
         # Compute all the requested losses
         losses = {}
-        for loss in self.losses:
+        for loss in self.losses:  # losses = ['labels', 'boxes', 'cardinality'] + ["masks"]
             losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
 
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.
@@ -270,6 +271,8 @@ class PostProcess(nn.Module):
                           For visualization, this should be the image size after data augment, but before padding
         """
         out_logits, out_bbox = outputs['pred_logits'], outputs['pred_boxes']
+        # shape: batchsize,num_queries,num_classes + 1
+        # shape: batchsize,num_queries,4
 
         assert len(out_logits) == len(target_sizes)
         assert target_sizes.shape[1] == 2
