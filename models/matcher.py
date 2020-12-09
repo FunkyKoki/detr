@@ -52,6 +52,21 @@ class HungarianMatcher(nn.Module):
             For each batch element, it holds:
                 len(index_i) = len(index_j) = min(num_queries, num_target_boxes)
         """
+
+        """
+We did try a few fixed orderings, including arbitrary fixed order (eg the dataset order), as well as a few lexicographical orders (sorting by position, size, class, ...), but all these attempts performed worse.
+
+If you enforce an ordering, you are essentially putting the additional constraint that the network must output the "true" predictions in the first queries, and then all predict "no-object" for all the remaining queries. Say if there are 100 object queries, which is the default in DETR, but only 3 objects to detect, then predictions [1, 3] must match the targets (according to whichever order you chose), and predictions [4, 100] must be "no objects".
+By contrast, with the Hungarian matching, it doesn't matter where the "true" predictions are, they can be scattered anywhere amongst the predictions. In my example, the network can decide to use queries say 43, 57 and 99 to predict the objects, and fill the rest with "no-object".
+
+Here is some intuition why this works better:
+
+Since the network doesn't have to push the predictions to the beginning, it can instead let each query specialize in its own kind of objects. We show in the paper that each object query tend to predict objects in a specific region of the image, which would not be possible with a forced ordering.
+Related to the previous point, it's rather clear that the fixed ordering is a worse usage of the queries. In coco for ex, there is no image with more than ~75 objects. With a fixed ordering, it means that the object queries in [75-100] will never be used. Similarly, there are few images with more than >50 objects, so queries [50-75] could potentially overfit to the said images. By contrast, with the Hungarian matching, increasing the number of queries improve the recall and thus the AP.
+Finally, Hungarian matching is more robust to noise in the annotations. Say for example there are 3 objects visible A, B and C, but for some reason only B and C are annotated. In the fixed ordering case, if the model predicts A, B, C (which would be theoretically correct), since the fixed ordering loss expects B, C, "no-object" it means that the model will be hugely penalized (none of the predictions will be correct). By contrast, with a Hungarian loss, B and C will be correctly reinforced, and the network will suffer only a small classification penalty for predicting A.
+I hope this helps giving more intuition about that.
+I believe I have answered your question, and as such I'm closing this issue. Feel free to reach out if you have further concerns.
+        """
         bs, num_queries = outputs["pred_logits"].shape[:2]
 
         # We flatten to compute the cost matrices in a batch
